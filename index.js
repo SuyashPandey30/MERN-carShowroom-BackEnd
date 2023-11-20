@@ -2,9 +2,9 @@ const jwt = require("jsonwebtoken");
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
-const cookieParser = require('cookie-parser');
+const cookieParser = require("cookie-parser");
 const app = express();
-const customermodel = require("./model/customermodel");
+const { BookingModel, customermodel } = require("./model/customermodel");
 
 app.use(express.json());
 app.use(cors());
@@ -22,37 +22,12 @@ mongoose
     console.error("Error connecting to MongoDB Atlas:", error);
     process.exit(1);
   });
-// Basic register
-// app.post("/register", (req, res) => {
-//   customermodel
-//     .create(req.body)
-//     .then((customers) => res.json(customers))
-//     .catch((err) => res.json(err));
-// });
 
-//registeration checking Email Pattern
-app.post("/register", async (req, res) => {
-  const { name, email, password } = req.body;
-  // Validate email pattern
-  const emailPattern = /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,4}$/;
-  if (!emailPattern.test(email)) {
-    return res.status(400).json({ error: "Invalid email format" });
-  }
-
-  try {
-    const existingUser = await customermodel.findOne({ email });
-
-    if (existingUser) {
-      return res.status(400).json({ error: "User with this email already exists" });
-    }
-
-    const newUser = await customermodel.create({ name, email, password });
-
-    return res.status(201).json(newUser);
-  } catch (err) {
-    console.error("Registration Error:", err);
-    return res.status(500).json({ error: "Internal Server Error" });
-  }
+app.post("/register", (req, res) => {
+  customermodel
+    .create(req.body)
+    .then((customers) => res.json(customers))
+    .catch((err) => res.json(err));
 });
 
 app.post("/login", async (req, res) => {
@@ -67,14 +42,9 @@ app.post("/login", async (req, res) => {
           "1@3$",
           { expiresIn: "1h" }
         );
-
-        // Set the token as a cookie
         res.cookie("token", token, { httpOnly: true, maxAge: 3600000 });
-
-        // Set name and email as separate cookies
         res.cookie("name", user.name, { httpOnly: true, maxAge: 3600000 });
         res.cookie("email", user.email, { httpOnly: true, maxAge: 3600000 });
-
         console.log("Logged in");
         return res.json({ name: user.name, email: user.email, token });
       } else {
@@ -96,6 +66,16 @@ app.post("/logout", (req, res) => {
   res.clearCookie("name");
   res.clearCookie("email");
   res.json({ message: "Logged out successfully" });
+});
+
+app.post("/submitTestDrive/:id", async (req, res) => {
+  try {
+    const newBooking = await BookingModel.create(req.body);
+    res.json(newBooking);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
 });
 
 app.get("/userIdByEmail/:email", async (req, res) => {
@@ -136,6 +116,17 @@ app.get("/checkEmail/:email", async (req, res) => {
   }
 });
 
+app.get("/getBookings/:id", async (req, res) => {
+  const userId = req.params.id;
+  try {
+    const bookings = await BookingModel.find({ userId: userId });
+    res.json(bookings);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
 app.put("/updateUser/:userId", async (req, res) => {
   const userId = req.params.userId;
 
@@ -168,6 +159,35 @@ app.delete("/delete-customer/:id", async (req, res) => {
   }
 });
 
+app.delete("/delete-booking/:id", async (req, res) => {
+  const appointmentId = req.params.id;
+
+  try {
+    const deletedAppointment = await BookingModel.findByIdAndDelete(
+      appointmentId
+    );
+
+    if (!deletedAppointment) {
+      return res.status(404).json({ error: "Appointment not found" });
+    }
+
+    console.log("Deleted appointment:", deletedAppointment);
+    return res.json({ message: "Appointment deleted successfully" });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
 app.listen(3001, () => {
   console.log("server is running");
 });
+
+
+// Basic register
+// app.post("/register", (req, res) => {
+//   customermodel
+//     .create(req.body)
+//     .then((customers) => res.json(customers))
+//     .catch((err) => res.json(err));
+// });
