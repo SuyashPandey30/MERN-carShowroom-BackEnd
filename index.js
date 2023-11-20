@@ -22,12 +22,37 @@ mongoose
     console.error("Error connecting to MongoDB Atlas:", error);
     process.exit(1);
   });
+// Basic register
+// app.post("/register", (req, res) => {
+//   customermodel
+//     .create(req.body)
+//     .then((customers) => res.json(customers))
+//     .catch((err) => res.json(err));
+// });
 
-app.post("/register", (req, res) => {
-  customermodel
-    .create(req.body)
-    .then((customers) => res.json(customers))
-    .catch((err) => res.json(err));
+//registeration checking Email Pattern
+app.post("/register", async (req, res) => {
+  const { name, email, password } = req.body;
+  // Validate email pattern
+  const emailPattern = /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,4}$/;
+  if (!emailPattern.test(email)) {
+    return res.status(400).json({ error: "Invalid email format" });
+  }
+
+  try {
+    const existingUser = await customermodel.findOne({ email });
+
+    if (existingUser) {
+      return res.status(400).json({ error: "User with this email already exists" });
+    }
+
+    const newUser = await customermodel.create({ name, email, password });
+
+    return res.status(201).json(newUser);
+  } catch (err) {
+    console.error("Registration Error:", err);
+    return res.status(500).json({ error: "Internal Server Error" });
+  }
 });
 
 app.post("/login", async (req, res) => {
